@@ -1,0 +1,411 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 3.2//EN">
+<!-- saved from url=(0067)http://mail.python.org/pipermail/xml-sig/1998-September/000280.html -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+   <title> [XML-SIG] Bookmark parsers
+   </title>
+   <link rel="Index" href="http://mail.python.org/pipermail/xml-sig/1998-September/index.html">
+   <link rel="made" href="mailto:larsga%40ifi.uio.no">
+   <meta name="robots" content="index,nofollow">
+   
+   <link rel="Previous" href="http://mail.python.org/pipermail/xml-sig/1998-September/000272.html">
+   <link rel="Next" href="http://mail.python.org/pipermail/xml-sig/1998-September/000281.html">
+ <style type="text/css">#yddContainer{display:block;font-family:Microsoft YaHei;position:relative;width:100%;height:100%;top:-4px;left:-4px;font-size:12px;border:1px solid}#yddTop{display:block;height:22px}#yddTopBorderlr{display:block;position:static;height:17px;padding:2px 28px;line-height:17px;font-size:12px;color:#5079bb;font-weight:bold;border-style:none solid;border-width:1px}#yddTopBorderlr .ydd-sp{position:absolute;top:2px;height:0;overflow:hidden}.ydd-icon{left:5px;width:17px;padding:0px 0px 0px 0px;padding-top:17px;background-position:-16px -44px}.ydd-close{right:5px;width:16px;padding-top:16px;background-position:left -44px}#yddKeyTitle{float:left;text-decoration:none}#yddMiddle{display:block;margin-bottom:10px}.ydd-tabs{display:block;margin:5px 0;padding:0 5px;height:18px;border-bottom:1px solid}.ydd-tab{display:block;float:left;height:18px;margin:0 5px -1px 0;padding:0 4px;line-height:18px;border:1px solid;border-bottom:none}.ydd-trans-container{display:block;line-height:160%}.ydd-trans-container a{text-decoration:none;}#yddBottom{position:absolute;bottom:0;left:0;width:100%;height:22px;line-height:22px;overflow:hidden;background-position:left -22px}.ydd-padding010{padding:0 10px}#yddWrapper{color:#252525;z-index:10001;background:url(chrome-extension://eopjamdnofihpioajgfdikhhbobonhbb/ab20.png);}#yddContainer{background:#fff;border-color:#4b7598}#yddTopBorderlr{border-color:#f0f8fc}#yddWrapper .ydd-sp{background-image:url(chrome-extension://eopjamdnofihpioajgfdikhhbobonhbb/ydd-sprite.png)}#yddWrapper a,#yddWrapper a:hover,#yddWrapper a:visited{color:#50799b}#yddWrapper .ydd-tabs{color:#959595}.ydd-tabs,.ydd-tab{background:#fff;border-color:#d5e7f3}#yddBottom{color:#363636}#yddWrapper{min-width:250px;max-width:400px;}</style></head>
+ <body bgcolor="#ffffff" youdao="bind">
+   <h1>[XML-SIG] Bookmark parsers
+   </h1>
+    <b>Lars Marius Garshol
+    </b> 
+    <a href="mailto:larsga%40ifi.uio.no" title="[XML-SIG] Bookmark parsers">larsga@ifi.uio.no
+       </a><br>
+    <i>Sat, 05 Sep 1998 16:37:12 +0200</i>
+    <p></p><ul>
+        <li> Previous message: <a href="http://mail.python.org/pipermail/xml-sig/1998-September/000272.html">[XML-SIG] Useless fun thing for XML - comments or helpers?
+</a></li>
+        <li> Next message: <a href="http://mail.python.org/pipermail/xml-sig/1998-September/000281.html">[XML-SIG] Re: XML-SIG digest, Vol 1 #90 - 7 msgs
+</a></li>
+         <li> <b>Messages sorted by:</b> 
+              <a href="http://mail.python.org/pipermail/xml-sig/1998-September/date.html#280">[ date ]</a>
+              <a href="http://mail.python.org/pipermail/xml-sig/1998-September/thread.html#280">[ thread ]</a>
+              <a href="http://mail.python.org/pipermail/xml-sig/1998-September/subject.html#280">[ subject ]</a>
+              <a href="http://mail.python.org/pipermail/xml-sig/1998-September/author.html#280">[ author ]</a>
+         </li>
+       </ul>
+    <hr>  
+<!--beginarticle-->
+<pre>Here are some scripts to convert from MSIE, Opera and Netscape bookmarks
+to Opera, Netscape and XBEL. There's hardly any support for created, visited
+and modified. Fredriks code has been looted to get the MSIE support.
+
+Testing has been minimal so far.
+
+(adr_parse.py)
+
+"""
+Small utility to parse Opera bookmark files.
+"""
+
+import string,bookmark
+
+# --- Constants
+
+short_months={"Jan":"01","Feb":"02","Mar":"03","Apr":"04","May":"05",
+              "Jun":"06","Jul":"07","Aug":"08","Sep":"09","Oct":"10",
+              "Nov":"11","Dec":"12"}
+
+# --- Parsing exception
+
+class OperaParseException(Exception):
+    pass
+
+# --- Methods
+        
+def readfield(infile,fieldname):
+    line=infile.readline()
+    pos=string.find(line,fieldname+"=")
+    if pos==-1:
+        raise OperaParseException("Field '%s' missing" % fieldname)
+
+    return line[pos+len(fieldname)+1:-1]
+
+def swallow_rest(infile):
+    "Reads input until first blank line."
+    while 1:
+        line=infile.readline()
+        if line=="" or line=="\n": break
+
+def parse_date(date):
+    # CREATED=904923783 (Fri Sep 04 17:43:03 1998)
+    # VISITED=0 (?)
+    lp=string.find(date,"(")
+    rp=string.find(date,")")
+    if lp==-1 or rp==-1:
+        raise OperaParseException("Date without parentheses")
+
+    if date[lp:rp+1]=="(?)":
+        return None
+
+    month=short_months[date[lp+5:lp+8]]
+    day=date[lp+9:lp+11]
+    year=date[rp-4:rp]
+
+    return "%s%s%s" % (year,month,day)
+
+def parse_adr(filename):
+    bms=bookmark.Bookmarks()
+    
+    infile=open(filename)
+    version=infile.readline()
+
+    while 1:
+        line=infile.readline()
+        if line=="": break
+        
+        if line[:-1]=="#FOLDER":
+            name=readfield(infile,"NAME")
+            created=parse_date(readfield(infile,"CREATED"))
+            visited=parse_date(readfield(infile,"VISITED"))
+            order=readfield(infile,"ORDER")
+            swallow_rest(infile)
+
+            bms.add_folder(name,created,visited)
+        elif line[:-1]=="#URL":
+            name=readfield(infile,"NAME")
+            url=readfield(infile,"URL")
+            created=parse_date(readfield(infile,"CREATED"))
+            visited=parse_date(readfield(infile,"VISITED"))
+            order=readfield(infile,"ORDER")
+            swallow_rest(infile)
+
+            bms.add_bookmark(name,created,visited,url)
+        elif line[:-1]=="-":
+            bms.leave_folder()
+
+    return bms
+
+# --- Test-program
+
+bms=parse_adr(r"c:\programfiler\opera\opera3.adr")
+bms.dump_netscape()
+
+(msie_parse.py)
+
+"""
+Small utility to convert MSIE favourites to an object structure.
+
+Originally written by Fredrik Lundh.
+"""
+
+import bookmark,os,string
+
+DIR = "Favoritter" # Norwegian version
+
+#USRDIR = os.environ["USERPROFILE"] # NT version
+USRDIR = r"c:\windows" # 95 version
+
+class MSIE:
+    # internet explorer
+
+    def __init__(self,bookmarks):
+        # FIXME: use registry for this!
+
+        self.bms=bookmarks
+        self.root = None
+        self.path = os.path.join(USRDIR, DIR)
+
+        self.__walk()
+
+    def __walk(self, subpath=[]):
+        # traverse favourites folder
+        path = os.path.join(self.path, string.join(subpath, os.sep))
+        for file in os.listdir(path):
+            fullname = os.path.join(path, file)
+            if os.path.isdir(fullname):
+                self.bms.add_folder(file,None,None)
+                self.__walk(subpath + [file])
+            else:
+                url = self.__geturl(fullname)
+                if url:
+                    self.bms.add_bookmark(os.path.splitext(file)[0],None,
+                                          None,url)
+
+    def __geturl(self, file):
+        try:
+            fp = open(file)
+            if fp.readline() != "[InternetShortcut]\n":
+                return None
+            while 1:
+                s = fp.readline()
+                if not s:
+                    break
+                if s[:4] == "URL=":
+                    return s[4:-1]
+        except IOError:
+            pass
+        return None
+
+# --- Testprogram
+    
+msie=MSIE(bookmark.Bookmarks())
+msie.bms.dump_xbel()
+
+(ns_parse.py)
+
+"""
+Small utility that parses Netscape bookmarks.
+"""
+
+from xml.sax import saxexts,saxlib
+import bookmark
+
+# --- SAX handler for Netscape bookmarks
+
+class NetscapeHandler(saxlib.HandlerBase):
+
+    def __init__(self):
+        self.bms=bookmark.Bookmarks()
+        self.cur_elem=None
+        self.added=None
+        self.url=None
+        self.visited=None
+        self.last_modified=None
+
+    def startElement(self,name,attrs):
+        if name=="h3":
+            self.cur_elem="h3"
+            self.added=attrs["add_date"]
+        elif name=="a":
+            self.cur_elem="a"
+            self.added=attrs["add_date"]
+            self.url=attrs["href"]
+            self.visited=attrs["last_visit"]
+            self.last_modified=attrs["last_modified"]            
+
+    def characters(self,data,start,length):
+        if self.cur_elem=="h3":
+            self.bms.add_folder(data[start:start+length],None,None)
+        elif self.cur_elem=="a":
+            self.bms.add_bookmark(data[start:start+length],None,None,self.url)
+            
+    def endElement(self,name):
+        if name=="h3":
+            self.cur_elem=None
+        elif name=="dl":
+            self.bms.leave_folder()
+        elif name=="a":
+            self.cur_elem=None
+
+# --- Main program
+
+ns_handler=NetscapeHandler()
+
+p=saxexts.SGMLParserFactory.make_parser()
+p.setDocumentHandler(ns_handler)
+p.parseFile(open(r"h:/internet/netscape/bookmark.htm"))
+
+ns_handler.bms.dump_netscape()
+
+(bookmark.py)
+
+"""
+Classes to store bookmarks and dump them to XBEL.
+"""
+
+import sys,string
+
+# --- Class for bookmark container
+
+class Bookmarks:
+
+    def __init__(self):
+        self.folders=[]
+        self.folder_stack=[]
+
+    def add_folder(self,name,created,visited):
+        nf=Folder(name,created,visited)
+        if self.folder_stack==[]:
+            self.folders.append(nf)
+        else:
+            self.folder_stack[-1].add_child(nf)
+
+        self.folder_stack.append(nf)
+
+    def add_bookmark(self,name,created,visited,url):
+        nb=Bookmark(name,created,visited,url)
+
+        if self.folder_stack!=[]:
+            self.folder_stack[-1].add_child(nb)
+        else:
+            self.folders.append(nb)
+        
+    def leave_folder(self):
+        if self.folder_stack!=[]:
+            del self.folder_stack[-1]
+
+    def dump_xbel(self,out=sys.stdout):
+        out.write("&lt;XBEL&gt;\n")
+        for folder in self.folders:
+            folder.dump_xbel(out)
+        out.write("&lt;XBEL&gt;")
+
+    def dump_adr(self,out=sys.stdout):
+        out.write("Opera Hotlist version 2.0\n\n")
+        for folder in self.folders:
+            folder.dump_adr(out)
+
+    def dump_netscape(self,out=sys.stdout):
+        out.write("&lt;!DOCTYPE NETSCAPE-Bookmark-file-1&gt;\n")
+        out.write("&lt;!-- This is an automatically generated file.\n")
+        out.write("It will be read and overwritten.\n")
+        out.write("Do Not Edit! --&gt;\n")
+        out.write("&lt;TITLE&gt;Skriv HELE NAVNET her's Bookmarks&lt;/TITLE&gt;\n")
+        out.write("&lt;H1&gt;Skriv HELE NAVNET her's Bookmarks&lt;/H1&gt;\n\n")
+
+        out.write("&lt;DL&gt;&lt;p&gt;\n")
+        for folder in self.folders:
+            folder.dump_netscape(out)
+        out.write("&lt;/DL&gt;&lt;p&gt;\n")
+
+# --- Superclass for folder and bookmarks
+        
+class Node:
+
+    def __init__(self,name,created,visited):
+        self.name=name
+        self.created=created
+        self.visited=visited
+
+# --- Class for folders
+    
+class Folder(Node):
+
+    def __init__(self,name,created,visited):
+        Node.__init__(self,name,created,visited)
+        self.children=[]
+
+    def add_child(self,child):
+        self.children.append(child)
+
+    def dump_xbel(self,out):
+        out.write("  &lt;NODE&gt;\n")
+        out.write("    &lt;NAME&gt;%s&lt;/NAME&gt;\n" % self.name)
+        for child in self.children:
+            child.dump_xbel(out)
+        out.write("  &lt;/NODE&gt;\n")
+
+    def dump_adr(self,out):
+        out.write("#FOLDER\n")
+        out.write("\tNAME=%s\n" % self.name)
+        out.write("\tCREATED=%s\n" % "0 (?)")
+        out.write("\tVISITED=%s\n" % "0 (?)")
+        out.write("\tORDER=-1\n")
+        out.write("\n")
+
+        for child in self.children:
+            child.dump_adr(out)
+
+        out.write("\n")
+        out.write("-\n")
+
+    def dump_netscape(self,out):
+        out.write("  &lt;DT&gt;&lt;H3 FOLDED&gt;%s&lt;/H3&gt;\n" % self.name)
+        out.write("  &lt;DL&gt;&lt;p&gt;\n")
+
+        for child in self.children:
+            child.dump_netscape(out)
+
+        out.write("  &lt;/DL&gt;&lt;p&gt;\n")
+
+# --- Class for bookmarks
+        
+class Bookmark(Node):
+
+    def __init__(self,name,created,visited,url):
+        Node.__init__(self,name,created,visited)
+        self.url=url
+
+    def dump_xbel(self,out):
+        out.write("  &lt;BOOKMARK&gt;\n")
+        out.write("    &lt;NAME&gt;%s&lt;/NAME&gt;\n" % self.name)
+        out.write("    &lt;URL&gt;%s&lt;/URL&gt;\n" % self.url)
+
+        if self.created!=None:
+            out.write("    &lt;ADDED&gt;%s&lt;/ADDED&gt;\n" % self.created)
+
+        if self.visited!=None:
+            out.write("    &lt;VISITED&gt;%s&lt;/VISITED&gt;\n" % self.visited)
+            
+        out.write("  &lt;/BOOKMARK\n")
+
+    def dump_adr(self,out):
+        out.write("#URL\n")
+        out.write("\tNAME=%s\n" % self.name)
+        out.write("\tURL=%s\n" % self.url)
+        out.write("\tCREATED=%s\n" % "0 (?)")
+        out.write("\tVISITED=%s\n" % "0 (?)")
+        out.write("\tORDER=-1\n")
+        out.write("\n")
+
+    def dump_netscape(self,out):
+        out.write("    &lt;DT&gt;&lt;A HREF=\"%s\"&gt;%s&lt;/A&gt;\n" % (self.url,self.name))
+
+--Lars M.
+
+
+</pre>
+<!--endarticle-->
+    <hr>
+    <p></p><ul>
+        <!--threads-->
+	<li> Previous message: <a href="http://mail.python.org/pipermail/xml-sig/1998-September/000272.html">[XML-SIG] Useless fun thing for XML - comments or helpers?
+</a></li>
+	<li> Next message: <a href="http://mail.python.org/pipermail/xml-sig/1998-September/000281.html">[XML-SIG] Re: XML-SIG digest, Vol 1 #90 - 7 msgs
+</a></li>
+         <li> <b>Messages sorted by:</b> 
+              <a href="http://mail.python.org/pipermail/xml-sig/1998-September/date.html#280">[ date ]</a>
+              <a href="http://mail.python.org/pipermail/xml-sig/1998-September/thread.html#280">[ thread ]</a>
+              <a href="http://mail.python.org/pipermail/xml-sig/1998-September/subject.html#280">[ subject ]</a>
+              <a href="http://mail.python.org/pipermail/xml-sig/1998-September/author.html#280">[ author ]</a>
+         </li>
+       </ul>
+
+</body></html>
